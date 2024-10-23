@@ -1,0 +1,22 @@
+{
+  "version": "1.2",
+  "dbname": "negative_cd_hit50",
+  "dbtype": "Protein",
+  "db-version": 5,
+  "description": "D:\\Programming\\Python\\113_BioML\\dataset\\31mer\\cd_hit50\\negative_cd_hit50.fasta",
+  "number-of-letters": 1207636,
+  "number-of-sequences": 38956,
+  "last-updated": "2024-10-22T15:55:00",
+  "number-of-volumes": 1,
+  "bytes-total": 6084839,
+  "bytes-to-cache": 1558413,
+  "files": [
+    "negative_cd_hit50.pdb",
+    "negative_cd_hit50.phr",
+    "negative_cd_hit50.pin",
+    "negative_cd_hit50.pot",
+    "negative_cd_hit50.psq",
+    "negative_cd_hit50.ptf",
+    "negative_cd_hit50.pto"
+  ]
+}
