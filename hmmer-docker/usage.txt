@@ -1,0 +1,7 @@
+1. Install Docker
+
+2. Go to the folder where Dockerfile is
+
+3. Run 'docker build -t hmmer-docker .'
+
+4. docker run -it --rm -v "C:\path\to\your\local\data:/data" hmmer-docker hmmsearch [options] <hmmfile> <seqfile>

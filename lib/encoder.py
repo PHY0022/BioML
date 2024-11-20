@@ -2,17 +2,144 @@ from Bio import SeqIO
 import pandas as pd
 import numpy as np
 import os
+from itertools import product
 
 AAs = ['A', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'L', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'V', 'W', 'Y']
 
+def GetLebel(posData, negData):
+    return posData + negData, [1] * len(posData) + [0] * len(negData)
+
+def Seq2OneHot(record, remove_center=False):
+    size = len(record)
+    if remove_center:
+        size -= 1
+    oneHot = np.zeros((size, len(AAs)), dtype=int)
+    idx = 0
+    for i, aa in enumerate(record):
+        if remove_center and i == len(record) // 2:
+            continue
+        oneHot[idx][AAs.index(aa)] = 1
+        idx += 1
+    return oneHot
+
+def Seqs2OneHot(records, remove_center=False):
+    oneHot = []
+    size = len(records[0])
+    if remove_center:
+        size -= 1
+
+    for record in records:
+        oneHot.append(np.zeros((size, len(AAs)), dtype=int))
+        idx = 0
+        for i, aa in enumerate(record):
+            if remove_center and i == len(record) // 2:
+                continue
+            oneHot[-1][idx][AAs.index(aa)] = 1
+            idx += 1
+
+    return oneHot
+
+def AA2OneHot(aa):
+    if aa not in AAs:
+        ValueError
+    oneHot = np.zeros(len(AAs), dtype=int)
+    oneHot[AAs.index(aa)] = 1
+    return oneHot
+
+class KmerEncoder:
+    def __init__(self, k):
+        self.k = k
+        self.AA_combinations = [''.join(i) for i in product(AAs, repeat=k)]
+        # print(self.AA_combinations)
+
+    def Kmer2OneHot(self, kmer):
+        if kmer not in self.AA_combinations:
+            print(f"Invalid kmer: {kmer}")
+            ValueError
+        oneHot = np.zeros((len(self.AA_combinations)), dtype=int)
+        oneHot[self.AA_combinations.index(kmer)] = 1
+        return oneHot
+
+def Balance(posRecords, negRecords, upsample=False):
+    posSize = len(posRecords)
+    negSize = len(negRecords)
+    if posSize > negSize:
+        if upsample:
+            posRecords, negRecords = UpSample(posRecords, negRecords)
+        else:
+            posRecords, negRecords = DownSample(posRecords, negRecords)
+    elif posSize < negSize:
+        if upsample:
+            negRecords, posRecords = UpSample(negRecords, posRecords)
+        else:
+            negRecords, posRecords = DownSample(negRecords, posRecords)
+    return posRecords, negRecords
+
+def DownSample(larger, smaller):
+    if len(larger) < len(smaller):
+        ValueError
+    size = len(smaller)
+    # Shuffle larger
+    np.random.shuffle(larger)
+    return larger[:size], smaller
+
+def UpSample(larger, smaller):
+    if len(larger) < len(smaller):
+        ValueError
+    size = len(larger)
+    # Shuffle smaller
+    np.random.shuffle(smaller)
+    smaller = smaller + smaller[:size - len(smaller)]
+    return larger, smaller
+    
+
 class Encoder:
-    def __init__(self, posData, negData):
+    def __init__(self, posData, negData, balance=False, upsample=False):
         self.posData = posData
         self.negData = negData
+        self.balance = balance
+        self.upsample = upsample
+
+    def ToSeq(self):
+        posRecords = [str(record.seq) for record in SeqIO.parse(self.posData, "fasta")]
+        negRecords = [str(record.seq) for record in SeqIO.parse(self.negData, "fasta")]
+
+        if self.balance:
+            posRecords, negRecords = Balance(posRecords, negRecords, self.upsample)
+
+        return posRecords, negRecords
+    
+    def ToKmer(self, k):
+        posRecords = [str(record.seq) for record in SeqIO.parse(self.posData, "fasta")]
+        negRecords = [str(record.seq) for record in SeqIO.parse(self.negData, "fasta")]
+
+        if self.balance:
+            posRecords, negRecords = Balance(posRecords, negRecords, self.upsample)
+
+        posKmers = []
+        negKmers = []
+
+        for record in posRecords:
+            Kmers = []
+            for i in range(len(record) - k + 1):
+                Kmers.append(record[i:i+k])
+            posKmers.append(Kmers)
+        for record in negRecords:
+            Kmers = []
+            for i in range(len(record) - k + 1):
+                Kmers.append(record[i:i+k])
+            negKmers.append(Kmers)
+
+        del posRecords, negRecords
+
+        return posKmers, negKmers
 
     def ToAAC(self):
         posRecords = [str(record.seq) for record in SeqIO.parse(self.posData, "fasta")]
         negRecords = [str(record.seq) for record in SeqIO.parse(self.negData, "fasta")]
+
+        if self.balance:
+            posRecords, negRecords = Balance(posRecords, negRecords, self.upsample)
 
         posAAC = pd.DataFrame(index=AAs, columns=['count', 'freq'], dtype=float)
         negAAC = pd.DataFrame(index=AAs, columns=['count', 'freq'], dtype=float)
@@ -35,11 +162,16 @@ class Encoder:
         posAAC['freq'] = posAAC['count'] / posAAC['count'].sum()
         negAAC['freq'] = negAAC['count'] / negAAC['count'].sum()
 
+        del posRecords, negRecords
+
         return posAAC, negAAC
     
     def ToPWM(self):
         posRecords = [str(record.seq) for record in SeqIO.parse(self.posData, "fasta")]
         negRecords = [str(record.seq) for record in SeqIO.parse(self.negData, "fasta")]
+
+        if self.balance:
+            posRecords, negRecords = Balance(posRecords, negRecords, self.upsample)
 
         half_size = len(posRecords[0]) // 2
         size_range = range(-half_size, half_size + 1)
@@ -62,23 +194,39 @@ class Encoder:
 
         return posPWM / float(len(posRecords)), negPWM / float(len(negRecords))
     
-    def ToOneHot(self):
+    def ToOneHot(self, remove_center=False):
         posRecords = [str(record.seq) for record in SeqIO.parse(self.posData, "fasta")]
         negRecords = [str(record.seq) for record in SeqIO.parse(self.negData, "fasta")]
 
-        posOneHot = []
-        negOneHot = []
+        if self.balance:
+            posRecords, negRecords = Balance(posRecords, negRecords, self.upsample)
 
-        for record in posRecords:
-            oneHot = np.zeros((len(record), len(AAs)), dtype=int)
-            for i, aa in enumerate(record):
-                oneHot[i][AAs.index(aa)] = 1
-            posOneHot.append(oneHot)
-        for record in negRecords:
-            oneHot = np.zeros((len(record), len(AAs)), dtype=int)
-            for i, aa in enumerate(record):
-                oneHot[i][AAs.index(aa)] = 1
-            negOneHot.append(oneHot)
+        posOneHot = Seqs2OneHot(posRecords, remove_center)
+        negOneHot = Seqs2OneHot(negRecords, remove_center)
+
+        # size = len(posRecords[0])
+        # if remove_center:
+        #     size -= 1
+
+        # for record in posRecords:
+        #     oneHot = np.zeros((size, len(AAs)), dtype=int)
+        #     idx = 0
+        #     for i, aa in enumerate(record):
+        #         if remove_center and i == len(record) // 2:
+        #             continue
+        #         oneHot[idx][AAs.index(aa)] = 1
+        #         idx += 1
+        #     posOneHot.append(oneHot)
+        # for record in negRecords:
+        #     oneHot = np.zeros((size, len(AAs)), dtype=int)
+        #     idx = 0
+        #     for i, aa in enumerate(record):
+        #         if remove_center and i == len(record) // 2:
+        #             if i != 15: print(i)
+        #             continue
+        #         oneHot[idx][AAs.index(aa)] = 1
+        #         idx += 1
+        #     negOneHot.append(oneHot)
 
         return posOneHot, negOneHot
     
@@ -137,6 +285,20 @@ class Encoder:
         os.remove(negTsv)
 
         return posTPC, negTPC
+    
+    def ToSASA(self):
+        posTsv = './tmp/posSASA.tsv'
+        negTsv = './tmp/negSASA.tsv'
+        os.system(f"python ./bin/iFeature/iFeature.py --file {self.posData} --path ./tmp --type ASA")
+        os.system(f"python ./bin/iFeature/iFeature.py --file {self.negData} --path ./tmp --type ASA")
+
+        posSASA = pd.read_csv(posTsv, sep='\t')
+        negSASA = pd.read_csv(negTsv, sep='\t')
+
+        os.remove(posTsv)
+        os.remove(negTsv)
+
+        return posSASA, negSASA
 
     # def ToAAC(self):
     #     posAAC_tsv = './tmp/posAAC.tsv'
