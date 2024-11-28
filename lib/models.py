@@ -142,14 +142,29 @@ class WE_DL:
         else:
             self.model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
 
-    def word2vec_predict(self, data):
+    def word2vec_predict(self, data, group_size=1000):
         data = np.array(data, dtype=float)
+        # print(data.shape)
 
         # Reshape
         dim1, dim2, dim3 = data.shape
         data = data.reshape(-1, dim3)
+        # print(data.shape)
 
-        data_new = self.word2vec.predict(data)
+        # data_new = self.word2vec.predict(data)
+        for i in range(0, len(data), group_size):
+            left = i
+            right = i + group_size
+            if right > len(data):
+                right = len(data)
+
+            # print(f"Predicting {left} to {right}...")
+            new = self.word2vec.predict(data[left:right])
+            # print(new.shape)
+            if i == 0:
+                data_new = new
+            else:
+                data_new = np.concatenate((data_new, new), axis=0)
 
         del data
 
@@ -157,71 +172,78 @@ class WE_DL:
         data_new = np.array(data_new, dtype=float)
         data_new = data_new.reshape(dim1, dim2, -1)
 
+        # print(data_new.shape)
         return data_new
 
     # OOM error, unknown cause
-    # def fit(self, x_train, y_train, epochs, batch_size, validation_data=None, verbose=1):
-    #     x_train = self.word2vec_predict(x_train)
-
-    #     if validation_data is not None:
-    #         x_val, y_val = validation_data
-    #         x_val = self.word2vec_predict(x_val)
-    #         validation_data = (x_val, y_val)
-
-    #     self.model.fit(x_train, y_train, epochs=epochs, verbose=verbose, batch_size=batch_size, validation_data=validation_data)
-
     def fit(self, x_train, y_train, epochs, batch_size, validation_data=None, verbose=1):
-        x_train = np.array(x_train, dtype=float)
+        x_train = self.word2vec_predict(x_train)
+        y_train = np.array(y_train, dtype=float)
 
-        # Reshape
-        dim1, dim2, dim3 = x_train.shape
-        x_train = x_train.reshape(-1, dim3)
-
-        # Call model in loop cause inefficient, must reshape first
-        x_train = self.word2vec.predict(x_train)
-
-        # Reshape
-        x_train = np.array(x_train, dtype=float)
-        x_train = x_train.reshape(dim1, dim2, -1)
-
-
-        if validation_data is not None or len(validation_data) > 0:
+        if validation_data is not None:
             x_val, y_val = validation_data
-            x_val = np.array(x_val, dtype=float)
-            # print(x_val.shape)
-
-            # Reshape
-            dim1, dim2, dim3 = x_val.shape
-            x_val = x_val.reshape(-1, dim3)
-
-            # Call model in loop cause inefficient, must reshape first
-            x_val = self.word2vec.predict(x_val)
-
-            # Reshape
-            x_val = np.array(x_val, dtype=float)
-            x_val = x_val.reshape(dim1, dim2, -1)
-
+            x_val = self.word2vec_predict(x_val)
+            y_val = np.array(y_val, dtype=float)
             validation_data = (x_val, y_val)
 
         self.model.fit(x_train, y_train, epochs=epochs, verbose=verbose, batch_size=batch_size, validation_data=validation_data)
 
+    # def fit(self, x_train, y_train, epochs, batch_size, validation_data=None, verbose=1):
+    #     x_train = np.array(x_train, dtype=float)
+
+    #     # Reshape
+    #     dim1, dim2, dim3 = x_train.shape
+    #     x_train = x_train.reshape(-1, dim3)
+
+    #     # Call model in loop cause inefficient, must reshape first
+    #     x_train = self.word2vec.predict(x_train)
+
+    #     # Reshape
+    #     x_train = np.array(x_train, dtype=float)
+    #     x_train = x_train.reshape(dim1, dim2, -1)
+
+
+    #     if validation_data is not None or len(validation_data) > 0:
+    #         x_val, y_val = validation_data
+    #         x_val = np.array(x_val, dtype=float)
+    #         # print(x_val.shape)
+
+    #         # Reshape
+    #         dim1, dim2, dim3 = x_val.shape
+    #         x_val = x_val.reshape(-1, dim3)
+
+    #         # Call model in loop cause inefficient, must reshape first
+    #         x_val = self.word2vec.predict(x_val)
+
+    #         # Reshape
+    #         x_val = np.array(x_val, dtype=float)
+    #         x_val = x_val.reshape(dim1, dim2, -1)
+
+    #         validation_data = (x_val, y_val)
+
+    #     self.model.fit(x_train, y_train, epochs=epochs, verbose=verbose, batch_size=batch_size, validation_data=validation_data)
+
+    # def predict(self, x_test, verbose=0):
+    #     word2vec = self.word2vec
+    #     x_test = np.array(x_test, dtype=float)
+    #     # print(x_test.shape)
+
+    #     # Reshape
+    #     dim1, dim2, dim3 = x_test.shape
+    #     x_test = x_test.reshape(-1, dim3)
+
+    #     # Call model in loop cause inefficient, must reshape first
+    #     x_test = word2vec.predict(x_test)
+    #     # x_test = [word2vec.predict(x) for x in x_test]
+
+    #     # Reshape
+    #     x_test = np.array(x_test, dtype=float)
+    #     x_test = x_test.reshape(dim1, dim2, -1)
+    #     # print(x_test.shape)
+    #     return self.model.predict(x_test, verbose=verbose)
+
     def predict(self, x_test, verbose=0):
-        word2vec = self.word2vec
-        x_test = np.array(x_test, dtype=float)
-        # print(x_test.shape)
-
-        # Reshape
-        dim1, dim2, dim3 = x_test.shape
-        x_test = x_test.reshape(-1, dim3)
-
-        # Call model in loop cause inefficient, must reshape first
-        x_test = word2vec.predict(x_test)
-        # x_test = [word2vec.predict(x) for x in x_test]
-
-        # Reshape
-        x_test = np.array(x_test, dtype=float)
-        x_test = x_test.reshape(dim1, dim2, -1)
-        # print(x_test.shape)
+        x_test = self.word2vec_predict(x_test)
         return self.model.predict(x_test, verbose=verbose)
     
     def save(self, path):

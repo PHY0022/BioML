@@ -4,5 +4,5 @@ Assignment_*
 
 # file size too large
 /bin/mkdssp
-__pycache__
+*__pycache__
 *.npy
