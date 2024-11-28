@@ -1,6 +1,8 @@
 from . import models, encoder
 from tensorflow.keras.preprocessing.sequence import skipgrams
 import numpy as np
+import torch
+from tape import ProteinBertModel, TAPETokenizer
 
 def skipgrams_kmer(Kmers, window_size):
     pairs = []
@@ -50,3 +52,61 @@ def skip_gram_word2vec(data, input_dim, embedding_dim=200, window_size=2, epochs
     print(word2vec.model.summary())
 
     return word2vec
+
+def tape_embedding(posSeqs, negSeqs, group_num=500):
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(device)
+
+    model = ProteinBertModel.from_pretrained('bert-base').to(device)
+    tokenizer = TAPETokenizer(vocab='iupac')
+
+    posTokens = [tokenizer.encode(seq) for seq in posSeqs]
+    negTokens = [tokenizer.encode(seq) for seq in negSeqs]
+    del posSeqs, negSeqs
+
+    posTokens = torch.tensor(np.array(posTokens)).to(device)
+    negTokens = torch.tensor(np.array(negTokens)).to(device)
+
+    posOutput = []
+    negOutput = []
+
+    if len(posTokens) > 0:
+        print(f"Total {len(posTokens)} positive sequences")
+        for i in range(0, len(posTokens), group_num):
+            left = i
+            right = i + group_num
+            if right > len(posTokens):
+                right = len(posTokens)
+
+            print(f"Embedding {left} to {right}...")
+
+            # tape = model(posTokens[left:right])[0].to('cpu').detach().numpy()
+            # tape = np.mean(tape, axis=1)
+            tape = model(posTokens[left:right])[1].to('cpu').detach().numpy()
+            if i == 0:
+                posOutput = tape
+            else:
+                posOutput = np.concatenate((posOutput, tape), axis=0)
+        del posTokens
+
+    if len(negTokens) > 0:
+        print(f"Total {len(negTokens)} negative sequences")
+        for i in range(0, len(negTokens), group_num):
+            left = i
+            right = i + group_num
+            if right > len(negTokens):
+                right = len(negTokens)
+
+            print(f"Embedding {left} to {right}...")
+
+            # tape = model(negTokens[left:right])[0].to('cpu').detach().numpy()
+            # tape = np.mean(tape, axis=1)
+            tape = model(negTokens[left:right])[1].to('cpu').detach().numpy()
+            if i == 0:
+                negOutput = tape
+            else:
+                negOutput = np.concatenate((negOutput, tape), axis=0)
+        del negTokens
+    # print(len(posOutput), len(posOutput[0]), posOutput[0].detach().numpy().shape)
+
+    return posOutput, negOutput

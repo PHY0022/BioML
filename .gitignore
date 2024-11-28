@@ -1,3 +1,8 @@
 Assignment_*
 /test*
+/ref
+
+# file size too large
 /bin/mkdssp
+__pycache__
+*.npy
