@@ -1,0 +1,4 @@
+word2vec_epochs=15
+word2vec_batch_size=256
+epochs=100
+batch_size=128

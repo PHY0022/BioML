@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import os
 from itertools import product
-from aaindex import aaindex1
+# from aaindex import aaindex1
 from . import BLOSUM62, z_scales
 
 AAs = ['A', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'L', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'V', 'W', 'Y']
@@ -82,7 +82,7 @@ class KmerEncoder:
         oneHot[self.AA_combinations.index(kmer)] = 1
         return oneHot
 
-def Balance(posRecords, negRecords, upsample=False):
+def Balance(posRecords, negRecords, upsample=False, shuffle=True):
     posSize = len(posRecords)
     negSize = len(negRecords)
 
@@ -91,30 +91,32 @@ def Balance(posRecords, negRecords, upsample=False):
 
     if posSize > negSize:
         if upsample:
-            posRecords, negRecords = UpSample(posRecords, negRecords)
+            posRecords, negRecords = UpSample(posRecords, negRecords, shuffle)
         else:
-            posRecords, negRecords = DownSample(posRecords, negRecords)
+            posRecords, negRecords = DownSample(posRecords, negRecords, shuffle)
     elif posSize < negSize:
         if upsample:
-            negRecords, posRecords = UpSample(negRecords, posRecords)
+            negRecords, posRecords = UpSample(negRecords, posRecords, shuffle)
         else:
-            negRecords, posRecords = DownSample(negRecords, posRecords)
+            negRecords, posRecords = DownSample(negRecords, posRecords, shuffle)
     return posRecords, negRecords
 
-def DownSample(larger, smaller):
+def DownSample(larger, smaller, shuffle=True):
     if len(larger) < len(smaller):
         ValueError
     size = len(smaller)
     # Shuffle larger
-    np.random.shuffle(larger)
+    if shuffle:
+        np.random.shuffle(larger)
     return larger[:size], smaller
 
-def UpSample(larger, smaller):
+def UpSample(larger, smaller, shuffle=True):
     if len(larger) < len(smaller):
         ValueError
     size = len(larger)
     # Shuffle smaller
-    np.random.shuffle(smaller)
+    if shuffle:
+        np.random.shuffle(smaller)
     smaller_out = smaller.copy()
     while len(smaller_out) < size:
         rest = size - len(smaller_out)
@@ -277,48 +279,42 @@ class Encoder:
 
         return pos_onehot, neg_onehot
 
-    
-    def ToAAindex(self, selected_indices):
-        '''
-        Given a list of selected AAindex, return the corresponding values of each record in the positive and negative dataset
-        '''
+ 
+    # def ToAAindex(self, selected_indices):
+    #     '''
+    #     Given a list of selected AAindex, return the corresponding values of each record in the positive and negative dataset
+    #     '''
+    #     posRecords, negRecords = self.ToSeq()
 
-        # posRecords = [str(record.seq) for record in SeqIO.parse(self.posData, "fasta")]
-        # negRecords = [str(record.seq) for record in SeqIO.parse(self.negData, "fasta")]
+    #     posAAindex = []
+    #     negAAindex = []
 
-        # if self.balance:
-        #     posRecords, negRecords = Balance(posRecords, negRecords, self.upsample)
-        posRecords, negRecords = self.ToSeq()
+    #     # selected_indices = [
+    #     #     'ZIMJ680104',
+    #     #     ]
 
-        posAAindex = []
-        negAAindex = []
+    #     center = len(posRecords[0]) // 2 # center of the sequence
 
-        # selected_indices = [
-        #     'ZIMJ680104',
-        #     ]
+    #     for record in posRecords:
+    #         AAindex = []
+    #         for i, aa in enumerate(record):
+    #             if i == center:
+    #                 continue
+    #             for indice in selected_indices:
+    #                 AAindex.append(aaindex1[indice][aa])
+    #         posAAindex.append(AAindex)
+    #     for record in negRecords:
+    #         AAindex = []
+    #         for i, aa in enumerate(record):
+    #             if i == center:
+    #                 continue
+    #             for indice in selected_indices:
+    #                 AAindex.append(aaindex1[indice][aa])
+    #         negAAindex.append(AAindex)
 
-        center = len(posRecords[0]) // 2 # center of the sequence
+    #     del posRecords, negRecords
 
-        for record in posRecords:
-            AAindex = []
-            for i, aa in enumerate(record):
-                if i == center:
-                    continue
-                for indice in selected_indices:
-                    AAindex.append(aaindex1[indice][aa])
-            posAAindex.append(AAindex)
-        for record in negRecords:
-            AAindex = []
-            for i, aa in enumerate(record):
-                if i == center:
-                    continue
-                for indice in selected_indices:
-                    AAindex.append(aaindex1[indice][aa])
-            negAAindex.append(AAindex)
-
-        del posRecords, negRecords
-
-        return posAAindex, negAAindex
+    #     return posAAindex, negAAindex
     
     def ToBLOSUM62(self, remove_center=False):
         '''

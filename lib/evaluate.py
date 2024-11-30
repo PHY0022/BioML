@@ -116,8 +116,41 @@ def Evaluation(y_test, y_pred, path=''):
 
 def ROC_curve_of_models(y_test, model_perform_dict, path=''):
     for model_name, y_proba in model_perform_dict.items():
+        y_proba = np.array(y_proba)
+
         tprs, fprs, thres = metrics.roc_curve(y_test, y_proba)
         auc = metrics.auc(fprs, tprs)
+        if auc < 0.5:
+            tprs, fprs, thresholds = metrics.roc_curve(y_test, 1 - y_proba)
+            auc = metrics.auc(fprs, tprs)
+
+        plt.plot(fprs, tprs, label=f"{model_name} (AUC = {auc:.2f})")
+
+    plt.xlim([0, 1])
+    plt.ylim([0, 1])
+    plt.xlabel("False Positive Rate")
+    plt.ylabel("True Positive Rate")
+    plt.title("ROC Curve")
+    plt.legend()
+
+    if path != '':
+        plt.savefig(os.path.join(path, 'roc_curve.png'), dpi=1000)
+        print(f"ROC curve saved at {os.path.join(path, 'roc_curve.png')}")
+
+    plt.show()
+
+
+
+def ROC_curve_of_cross_validation(answers, model_perform_dict, path=''):
+    for i, (model_name, y_proba) in enumerate(model_perform_dict.items()):
+        y_proba = np.array(y_proba)
+
+        tprs, fprs, thres = metrics.roc_curve(answers[i], y_proba)
+        auc = metrics.auc(fprs, tprs)
+        if auc < 0.5:
+            tprs, fprs, thresholds = metrics.roc_curve(answers[i], 1 - y_proba)
+            auc = metrics.auc(fprs, tprs)
+
         plt.plot(fprs, tprs, label=f"{model_name} (AUC = {auc:.2f})")
 
     plt.xlim([0, 1])

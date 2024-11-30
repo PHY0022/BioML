@@ -1,0 +1,24 @@
+Environment: Windows 11
+
+To run keras with gpu, conda are recommanded.
+
+##===== Conda setup =====##
+1. Install Anaconda on your own device.
+
+2. Create a virtual environment by:
+    ## Note: The version of Python and tensorflow must be compatible.
+       If you want to use other version, check information online. ##
+
+    $ conda create -n <your_env> python=3.10
+    $ conda activate <your_env>
+    $ conda search tensorflow (check the available versions)
+    $ conda install "tensorflow=2.10*=gpu*"
+
+    ## You can manage the virtual environment of conda by:
+    $ conda env list
+    $ conda activate <your_env>
+    $ conda deactivate
+    $ conda list (list all packages in the environment)
+    $ conda env remove --name <your_env> (remove the environment) ##
+
+3. Install other required modules after encountering missing modules while running.

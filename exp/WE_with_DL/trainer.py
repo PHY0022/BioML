@@ -1,3 +1,17 @@
+'''
+#################
+# WE_DL Trainer #
+#################
+
+Code for training WE_DL model.
+Model implementation details can be found in lib/models.py.
+
+This code will do cross validation first,
+then train the model with all data.
+
+All results will be saved in a directory named "result-<time>".
+Use example in /exp/WE_with_DL_results.ipynb to analyze the results.
+'''
 import sys
 import os
 
@@ -46,10 +60,12 @@ def trainer(X_kmer,
     result_dir = os.path.join(current_dir, "result-"+time)
     os.makedirs(result_dir, exist_ok=True)
 
+    open(os.path.join(result_dir, "params.txt"), "w").write(f"word2vec_epochs={word2vec_epochs}\nword2vec_batch_size={word2vec_batch_size}\nepochs={epochs}\nbatch_size={batch_size}\n")
+
     print("Cross validation...")
     with open(os.path.join(result_dir, "result-"+time+".csv"), "w") as fw:
         with open(os.path.join(result_dir, "raw-"+time+".csv"), "w") as fw1:
-            fw.write("fold,acc,sensitivity,specificity,mcc,auc\n")
+            fw.write("fold,acc,tn, fp, fn, tp,sensitivity,specificity,mcc,auc\n")
             for i, (train_idxs, test_idxs) in enumerate(kf.split(X_kmer)):
                 print(f"Fold {i+1}...")
 
@@ -77,13 +93,17 @@ def trainer(X_kmer,
                 y_proba = model.predict(X_test)
 
                 y_proba = np.array(y_proba, dtype=float)
-                acc, sn, sp, mcc, auc = evaluate.Result(y_data_test, y_proba)
+                acc, tn, fp, fn, tp, sn, sp, mcc, auc = evaluate.Result(y_data_test, y_proba)
+                print(f"Fold {i+1}: acc={acc:.4f}, tn={tn}, fp={fp}, fn={fn}, tp={tp}, sn={sn:.4f}, sp={sp:.4f}, mcc={mcc:.4f}, auc={auc:.4f}")
 
                 # Save result
-                fw.write(f"{i+1},{acc},{sn},{sp},{mcc},{auc}\n")
+                fw.write(f"{i+1},{acc},{tn},{fp},{fn},{tp},{sn},{sp},{mcc},{auc}\n")
                 fw1.write(f"{i+1},")
+                for i in range(len(y_proba)):
+                    fw1.write(f"{y_data_test[i]},")
+                fw1.write(f"\n{i+1},")
                 for proba in y_proba:
-                    fw1.write(f"{proba},")
+                    fw1.write(f"{proba[0]},")
                 fw1.write("\n")
 
                 del model
@@ -101,11 +121,11 @@ def trainer(X_kmer,
     model = models.WE_DL(word2vec)
     model.fit(X_train, y_data, epochs=epochs, batch_size=batch_size)
 
-    word2vec_path = os.path.join(current_dir, "pretrained", "word2vec-"+time+".model")
+    word2vec_path = os.path.join(result_dir, "word2vec.model")
     word2vec.save(word2vec_path)
-    model_path = os.path.join(current_dir, "pretrained", "WE_DL-"+time+".model")
+    model_path = os.path.join(result_dir, "WE_DL.model")
     model.save(model_path)
-    print("Models saved.")
+    print("Models saved at", result_dir)
 
 
 
@@ -125,6 +145,9 @@ def main():
     print("Converting sequences to kmers...")
     k = 2
     posKmers, negKmers = Seqs.ToKmer(k)
+
+    posKmers, negKmers = encoder.Balance(posKmers, negKmers, shuffle=False)
+
     X_kmer, y_data = encoder.GetLebel(posKmers, negKmers)
 
 

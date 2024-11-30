@@ -35,3 +35,4 @@ print(pos_data.shape, neg_data.shape)
 prefix = "train_"
 np.save(current_dir+"/data/"+prefix+"pos_data.npy", pos_data)
 np.save(current_dir+"/data/"+prefix+"neg_data.npy", neg_data)
+

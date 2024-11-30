@@ -1,3 +1,17 @@
+'''
+###################
+# DeepAFP Trainer #
+###################
+
+Code for training DeepAFP model.
+Model implementation details can be found in lib/models.py.
+
+This code will do cross validation first,
+then train the model with all data.
+
+All results will be saved in a directory named "result-<time>".
+Use example in /exp/DeepAFP_results.ipynb to analyze the results.
+'''
 import sys
 import os
 
@@ -28,9 +42,11 @@ def trainer(X_tape, X_data, y_data, fold=5, epochs=100, batch_size=128):
     result_dir = os.path.join(current_dir, "result-"+time)
     os.makedirs(result_dir, exist_ok=True)
 
+    open(os.path.join(result_dir, "params.txt"), "w").write(f"epochs={epochs}\nbatch_size={batch_size}\n")
+
     print("Cross validation...")
-    with open(os.path.join(result_dir, "result-"+time+".csv"), "w") as fw:
-        with open(os.path.join(result_dir, "raw-"+time+".csv"), "w") as fw1:
+    with open(os.path.join(result_dir, "result.csv"), "w") as fw:
+        with open(os.path.join(result_dir, "raw.csv"), "w") as fw1:
             fw.write("fold,acc,tn, fp, fn, tp,sensitivity,specificity,mcc,auc\n")
             for i, (train_idxs, test_idxs) in enumerate(kf.split(X_data)):
                 print(f"Fold {i+1}...")
@@ -55,6 +71,9 @@ def trainer(X_tape, X_data, y_data, fold=5, epochs=100, batch_size=128):
                 fw.write(f"{i+1},{acc},{tn},{fp},{fn},{tp},{sn},{sp},{mcc},{auc}\n")
                 fw1.write(f"{i+1},")
                 for i in range(len(y_proba)):
+                    fw1.write(f"{y_data_test[:, 0][i]},")
+                fw1.write(f"\n{i+1},")
+                for i in range(len(y_proba)):
                     fw1.write(f"{y_proba[i]},")
                 fw1.write("\n")
 
@@ -64,7 +83,7 @@ def trainer(X_tape, X_data, y_data, fold=5, epochs=100, batch_size=128):
     model = models.DeepAFP()
     model.fit(X_tape, X_data, y_data, epochs=epochs, batch_size=batch_size)
 
-    model_path = os.path.join(current_dir, "pretrained", "DeepAFP-"+time+".model")
+    model_path = os.path.join(result_dir, "DeepAFP.model")
     model.save(model_path)
     print("Model saved at", model_path)
 
@@ -80,11 +99,13 @@ def main():
     neg_data_path = current_dir + "/data/train_neg_data.npy"
     pos_data = np.load(pos_data_path)
     neg_data = np.load(neg_data_path)
+    pos_data, neg_data = encoder.Balance(pos_data, neg_data, shuffle=False)
 
     posTAPE_path = current_dir + "/data/train_posTAPE.npy"
     negTAPE_path = current_dir + "/data/train_negTAPE.npy"
     posTAPE = np.load(posTAPE_path)
     negTAPE = np.load(negTAPE_path)
+    posTAPE, negTAPE = encoder.Balance(posTAPE, negTAPE, shuffle=False)
 
     X_data, y_data = encoder.GetLebel(pos_data, neg_data)
     y_data = encoder.OneHot2Label(y_data)
