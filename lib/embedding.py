@@ -3,6 +3,7 @@ from tensorflow.keras.preprocessing.sequence import skipgrams
 import numpy as np
 import torch
 from tape import ProteinBertModel, TAPETokenizer
+import ankh
 
 def skipgrams_kmer(Kmers, window_size):
     pairs = []
@@ -53,7 +54,7 @@ def skip_gram_word2vec(data, input_dim, embedding_dim=200, window_size=2, epochs
 
     return word2vec
 
-def tape_embedding(posSeqs, negSeqs, group_num=500):
+def tape_embedding(posSeqs, negSeqs, pooled=True, group_num=500):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(device)
 
@@ -80,13 +81,16 @@ def tape_embedding(posSeqs, negSeqs, group_num=500):
 
             print(f"Embedding {left} to {right}...")
 
-            # tape = model(posTokens[left:right])[0].to('cpu').detach().numpy()
-            # tape = np.mean(tape, axis=1)
-            tape = model(posTokens[left:right])[1].to('cpu').detach().numpy()
+            if not pooled:
+                tape = model(posTokens[left:right])[0].to('cpu').detach().numpy()
+            else:
+                tape = model(posTokens[left:right])[1].to('cpu').detach().numpy()
             if i == 0:
                 posOutput = tape
             else:
                 posOutput = np.concatenate((posOutput, tape), axis=0)
+            
+            print(posOutput.shape)
         del posTokens
 
     if len(negTokens) > 0:
@@ -99,14 +103,92 @@ def tape_embedding(posSeqs, negSeqs, group_num=500):
 
             print(f"Embedding {left} to {right}...")
 
-            # tape = model(negTokens[left:right])[0].to('cpu').detach().numpy()
-            # tape = np.mean(tape, axis=1)
-            tape = model(negTokens[left:right])[1].to('cpu').detach().numpy()
+            if not pooled:
+                tape = model(negTokens[left:right])[0].to('cpu').detach().numpy()
+            else:
+                tape = model(negTokens[left:right])[1].to('cpu').detach().numpy()
             if i == 0:
                 negOutput = tape
             else:
                 negOutput = np.concatenate((negOutput, tape), axis=0)
+
+            print(negOutput.shape)
         del negTokens
     # print(len(posOutput), len(posOutput[0]), posOutput[0].detach().numpy().shape)
+
+    return posOutput, negOutput
+
+def ankh_embedding(posSeqs, negSeqs, group_num=500, model_size='base'):
+    if model_size.lower() == 'large':
+        print('Using Ankh Large model')
+        model, tokenizer = ankh.load_large_model()
+        model.eval()
+    else:
+        print('Using Ankh Base model')
+        model, tokenizer = ankh.load_base_model()
+        model.eval()
+
+    posOutput = []
+    negOutput = []
+
+    for i in range(0, len(posSeqs), group_num):
+        left = i
+        right = i + group_num
+        if right > len(posSeqs):
+            right = len(posSeqs)
+
+        print(f"Embedding {left} to {right}...")
+
+        protein_sequences = [list(seq) for seq in posSeqs[left:right]]
+
+        tokens = tokenizer.batch_encode_plus(protein_sequences, 
+                                    add_special_tokens=True, 
+                                    padding=True, 
+                                    is_split_into_words=True, 
+                                    return_tensors="pt")
+        with torch.no_grad():
+            outputs = model(input_ids=tokens['input_ids'], attention_mask=tokens['attention_mask'])
+
+        outputs = np.mean(outputs.last_hidden_state.detach().numpy(), axis=1) # Average pooling
+
+        if i == 0:
+            posOutput = outputs
+        else:
+            posOutput = np.concatenate((posOutput, outputs), axis=0)
+
+        print(posOutput.shape)
+
+        del tokens, outputs
+    del posSeqs
+
+    for i in range(0, len(negSeqs), group_num):
+        left = i
+        right = i + group_num
+        if right > len(negSeqs):
+            right = len(negSeqs)
+
+        print(f"Embedding {left} to {right}...")
+
+        protein_sequences = [list(seq) for seq in negSeqs[left:right]]
+
+        tokens = tokenizer.batch_encode_plus(protein_sequences, 
+                                    add_special_tokens=True, 
+                                    padding=True, 
+                                    is_split_into_words=True, 
+                                    return_tensors="pt")
+        with torch.no_grad():
+            outputs = model(input_ids=tokens['input_ids'], attention_mask=tokens['attention_mask'])
+
+        outputs = np.mean(outputs.last_hidden_state.detach().numpy(), axis=1) # Average pooling
+
+        if i == 0:
+            negOutput = outputs
+        else:
+            negOutput = np.concatenate((negOutput, outputs), axis=0)
+
+        print(negOutput.shape)
+
+        del tokens, outputs
+    del negSeqs
 
     return posOutput, negOutput
