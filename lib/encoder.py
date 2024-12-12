@@ -84,7 +84,7 @@ class KmerEncoder:
         oneHot[self.AA_combinations.index(kmer)] = 1
         return oneHot
 
-def k_means_indices(larger, smaller):
+def k_means_indices(larger, smaller, random_state=87):
     if len(larger) < len(smaller):
         ValueError
     elif len(larger) == len(smaller):
@@ -95,7 +95,7 @@ def k_means_indices(larger, smaller):
 
     # K-means clustering
     k = len(smaller)  # Desired number of clusters
-    kmeans = KMeans(n_clusters=k, random_state=87)
+    kmeans = KMeans(n_clusters=k, random_state=random_state)
     kmeans.fit(larger)
 
     # Get cluster indices

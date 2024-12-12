@@ -49,6 +49,7 @@ print(len(negOnehot[clusered_indices]))
 
 
 save_path = "dataset/31mer/provided_by_TA/kmeans/"
+os.makedirs(save_path, exist_ok=True)
 np.save(save_path+"onehot_kmeans_indices.npy", clusered_indices)
 
 
