@@ -3,8 +3,10 @@ import pandas as pd
 import numpy as np
 import os
 from itertools import product
-# from aaindex import aaindex1
+from aaindex import aaindex1
 from . import BLOSUM62, z_scales
+from sklearn.cluster import KMeans
+from sklearn.metrics.pairwise import euclidean_distances
 
 AAs = ['A', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'L', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'V', 'W', 'Y']
 
@@ -82,6 +84,82 @@ class KmerEncoder:
         oneHot[self.AA_combinations.index(kmer)] = 1
         return oneHot
 
+def k_means_indices(larger, smaller):
+    if len(larger) < len(smaller):
+        ValueError
+    elif len(larger) == len(smaller):
+        return np.full(len(larger), True)
+
+    larger = np.array(larger)
+    smaller = np.array(smaller)
+
+    # K-means clustering
+    k = len(smaller)  # Desired number of clusters
+    kmeans = KMeans(n_clusters=k, random_state=87)
+    kmeans.fit(larger)
+
+    # Get cluster indices
+    indices = np.full(len(larger), False)
+    for centroid in kmeans.cluster_centers_:
+        dist = euclidean_distances([centroid], larger)
+        idx = np.argmin(dist)
+        indices[idx] = True
+
+    return indices
+
+def K_Means(posData, negData, num_threads=8):
+    posSize = len(posData)
+    negSize = len(negData)
+
+    if posSize == 0 or negSize == 0:
+        RuntimeError("Data with zero size can't balance")
+
+
+    if posSize > negSize:
+        larger = posData
+        smaller = negData
+        pos_is_larger = True
+    elif posSize < negSize:
+        larger = negData
+        smaller = posData
+        pos_is_larger = False
+    else:
+        return posData, negData
+    
+    # larger = np.array(larger)
+    # smaller = np.array(smaller)
+
+    # os.environ["OMP_NUM_THREADS"] = f'{num_threads}'
+
+    # # K-means clustering
+    # k = len(smaller)  # Desired number of clusters
+    # kmeans = KMeans(n_clusters=k, random_state=0)
+    # kmeans.fit(larger)
+
+
+    # # Get cluster representatives
+    # representatives = []
+    # for cluster in range(k):
+    #     cluster_indices = np.where(kmeans.labels_ == cluster)[0]
+    #     cluster_sequences = larger[cluster_indices]
+    #     centroid = kmeans.cluster_centers_[cluster]
+    #     closest_idx = np.argmin(euclidean_distances(cluster_sequences, [centroid]))
+    #     representatives.append(larger[cluster_indices[closest_idx]])
+
+    # representatives = np.array(representatives)
+
+    # if pos_is_larger:
+    #     return representatives, smaller
+    # else:
+    #     return smaller, representatives
+
+    indices = k_means_indices(larger, smaller)
+
+    if pos_is_larger:
+        return larger[indices], smaller
+    else:
+        return smaller, larger[indices]
+
 def Balance(posRecords, negRecords, upsample=False, shuffle=True):
     posSize = len(posRecords)
     negSize = len(negRecords)
@@ -148,11 +226,15 @@ class Encoder:
         return posRecords, negRecords
     
     def ToKmer(self, k):
-        # posRecords = [str(record.seq) for record in SeqIO.parse(self.posData, "fasta")]
-        # negRecords = [str(record.seq) for record in SeqIO.parse(self.negData, "fasta")]
+        '''
+        Convert protein sequences to kmers with length k.
 
-        # if self.balance:
-        #     posRecords, negRecords = Balance(posRecords, negRecords, self.upsample)
+        Example:
+
+        Input = 'WNGWGY'
+
+        Output = ['WN', 'NG', 'GW', 'WG', 'GY']
+        '''
         posRecords, negRecords = self.ToSeq()
 
         posKmers = []
@@ -160,8 +242,11 @@ class Encoder:
 
         for record in posRecords:
             Kmers = []
+            # print(record)
             for i in range(len(record) - k + 1):
                 Kmers.append(record[i:i+k])
+            # print(Kmers)
+            # exit()
             posKmers.append(Kmers)
         for record in negRecords:
             Kmers = []
@@ -280,41 +365,63 @@ class Encoder:
         return pos_onehot, neg_onehot
 
  
-    # def ToAAindex(self, selected_indices):
-    #     '''
-    #     Given a list of selected AAindex, return the corresponding values of each record in the positive and negative dataset
-    #     '''
-    #     posRecords, negRecords = self.ToSeq()
+    def ToAAindex(self, remove_center=False):
+        '''
+        Given a list of selected AAindex, return the corresponding values 
+        of each record in the positive and negative dataset
 
-    #     posAAindex = []
-    #     negAAindex = []
+        58 selected aaindex from the paper:
+        "Benchmarking of protein descriptor sets in proteochemometric 
+        modeling (part 1): comparative study of 13 amino acid descriptor sets"
+        link: https://link.springer.com/article/10.1186/1758-2946-5-41
+        '''
+        posRecords, negRecords = self.ToSeq()
 
-    #     # selected_indices = [
-    #     #     'ZIMJ680104',
-    #     #     ]
+        posAAindex = []
+        negAAindex = []
 
-    #     center = len(posRecords[0]) // 2 # center of the sequence
+        selected_indices = [
+            "ARGP820103", "BAEK050101", "BHAR880101", "CASG920101", "CHAM810101", "CHAM820101",
+            "CHAM830101", "CHAM830107", "CHAM830108", "CHOP780201", "CHOP780202", "CHOP780203",
+            "CIDH920105", "COSI940101", "FASG760101", "FAUJ880102", "FAUJ880103", "FAUJ880104",
+            "FAUJ880105", "FAUJ880106", "FAUJ880109", "FAUJ880110", "FAUJ880111", "FAUJ880112",
+            "FAUJ880113", "GRAR740102", "JANJ780102", "JANJ780103", "JOND920102", "JUNJ780101",
+            "KLEP840101", "KOEP990101", "KOEP990102", "KRIW790101", "KYTJ820101", "LEVM760102",
+            "LEVM760103", "LEVM760104", "LEVM760105", "LEVM760106", "LEVM760107", "MITS020101",
+            "MONM990201", "NISK800101", "NISK860101", "PONP800101", "PONP930101", "RACS770103",
+            "RADA880108", "ROSG850101", "ROSG850102", "ROSM880102", "TAKK010101", "VINM940101",
+            "WARP780101", "WOLR810101", "ZHOH040102", "ZHOH040103"
+            ]
 
-    #     for record in posRecords:
-    #         AAindex = []
-    #         for i, aa in enumerate(record):
-    #             if i == center:
-    #                 continue
-    #             for indice in selected_indices:
-    #                 AAindex.append(aaindex1[indice][aa])
-    #         posAAindex.append(AAindex)
-    #     for record in negRecords:
-    #         AAindex = []
-    #         for i, aa in enumerate(record):
-    #             if i == center:
-    #                 continue
-    #             for indice in selected_indices:
-    #                 AAindex.append(aaindex1[indice][aa])
-    #         negAAindex.append(AAindex)
+        center = len(posRecords[0]) // 2 # center of the sequence
 
-    #     del posRecords, negRecords
+        for record in posRecords:
+            AAindexs = []
+            for i, aa in enumerate(record):
+                if remove_center and i == center:
+                    continue
+                aaindex = []
+                for indice in selected_indices:
+                    aaindex.append(aaindex1[indice]['values'][aa])
+                AAindexs.append(aaindex)
+            posAAindex.append(AAindexs)
 
-    #     return posAAindex, negAAindex
+        del posRecords
+
+        for record in negRecords:
+            AAindexs = []
+            for i, aa in enumerate(record):
+                if remove_center and i == center:
+                    continue
+                aaindex = []
+                for indice in selected_indices:
+                    aaindex.append(aaindex1[indice]['values'][aa])
+                AAindexs.append(aaindex)
+            negAAindex.append(AAindexs)
+
+        del negRecords
+
+        return posAAindex, negAAindex
     
     def ToBLOSUM62(self, remove_center=False):
         '''

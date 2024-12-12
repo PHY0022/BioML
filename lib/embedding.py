@@ -4,23 +4,55 @@ import numpy as np
 import torch
 from tape import ProteinBertModel, TAPETokenizer
 import ankh
+import esm
 
 def skipgrams_kmer(Kmers, window_size):
     pairs = []
+    if len(Kmers) == 0:
+        return pairs
+    
+    k = len(Kmers[0])
     for i, Kmer in enumerate(Kmers):
-        l = i - window_size
-        r = i + window_size + 1
+        l = (i - window_size) * k
+        r = (i + window_size + 1) * k
+        ### * k because kmers is converted to k-mer by order
+        ### so the non-overlapping window size is k * window_size
+        ### e.g. origin seq: YITRNKRKKL, k = 2, window_size = 2
+        ### k-mers: YI, IT, TR, RN, NK, KR, RK, KK, KL
+        ### non-overlapping pairs for YI(0): TR(2), NK(4)
+        ### non-overlapping pairs for TR(2): YI(0), RN(4), KR(6)
+
         if l < 0:
             l = 0
         if r > len(Kmers):
             r = len(Kmers)
-        for j in range(l, r):
+        for j in range(l, r, k):
             if i == j:
                 continue
             pairs.append((Kmer, Kmers[j]))
+
+    # print(f"Kmers: {Kmers[:5]}")
+    # print(f"Pairs: {pairs[:5]}")
+    # exit()
     return pairs
 
 def skip_gram_word2vec(data, input_dim, embedding_dim=200, window_size=2, epochs=500, batch_size=32):
+    '''
+    Generate Skip-Gram Word2Vec model
+
+    The downstream use of this model is to generate embeddings for k-mers in a sequence
+
+    Input kmers should be the same order as the sequence
+
+    Example:
+    seq = 'YITRNKRKKL', k = 2
+
+    kmers = ['YI', 'IT', 'TR', 'RN', 'NK', 'KR', 'RK', 'KK', 'KL']
+
+    data = list of kmers
+
+    input_dim = sequence_length - k + 1
+    '''
     # Generate Skip-Gram pairs
     pairs = []
     # lebel = []
@@ -46,10 +78,6 @@ def skip_gram_word2vec(data, input_dim, embedding_dim=200, window_size=2, epochs
     word2vec = models.Word2Vec(input_dim, embedding_dim)
     word2vec.fit(x_train, y_train, epochs=epochs, batch_size=batch_size)
 
-    # input = [kmerEncoder.Kmer2OneHot("AA")]
-    # input = np.array(input)
-    # print(input.shape)
-    # print(np.array(word2vec.predict(input)).shape)
     print(word2vec.model.summary())
 
     return word2vec
@@ -190,5 +218,91 @@ def ankh_embedding(posSeqs, negSeqs, group_num=500, model_size='base'):
 
         del tokens, outputs
     del negSeqs
+
+    return posOutput, negOutput
+
+
+def esm2_embedding(posSeqs, negSeqs, group_num=500):
+    # Load ESM-2 model
+    model, alphabet = esm.pretrained.esm2_t33_650M_UR50D()
+    batch_converter = alphabet.get_batch_converter()
+    model.eval()  # disables dropout for deterministic results
+
+    posOutput = []
+    negOutput = []
+
+    posData = []
+    for i, seq in enumerate(posSeqs):
+        posData.append((f"{i}", seq))
+    del posSeqs
+    negData = []
+    for i, seq in enumerate(negSeqs):
+        negData.append((f"{i}", seq))
+    del negSeqs
+
+
+    ### Positive sequences
+    batch_labels, batch_strs, batch_tokens = batch_converter(posData)
+    batch_lens = (batch_tokens != alphabet.padding_idx).sum(1)
+
+
+    print(f"Total {len(batch_tokens)} positive sequences")
+    for i in range(0, len(batch_tokens), group_num):
+        left = i
+        right = i + group_num
+        if right > len(batch_tokens):
+            right = len(batch_tokens)
+
+        print(f"Embedding {left} to {right}...")
+
+        with torch.no_grad():
+            results = model(batch_tokens[left:right], repr_layers=[33], return_contacts=True)
+        # token_representations.append(results["representations"][33])
+        if i == 0:
+            token_representations = results["representations"][33]
+        else:
+            token_representations = torch.cat((token_representations, results["representations"][33]), dim=0)
+
+        del results
+
+
+    for i, tokens_len in enumerate(batch_lens):
+        posOutput.append(token_representations[i, 1 : tokens_len - 1].mean(0).detach().numpy())
+
+    del batch_labels, batch_strs, batch_tokens, batch_lens, token_representations
+
+
+    ### Negative sequences
+    batch_labels, batch_strs, batch_tokens = batch_converter(negData)
+    batch_lens = (batch_tokens != alphabet.padding_idx).sum(1)
+
+
+    print(f"Total {len(batch_tokens)} negative sequences")
+    for i in range(0, len(batch_tokens), group_num):
+        left = i
+        right = i + group_num
+        if right > len(batch_tokens):
+            right = len(batch_tokens)
+
+        print(f"Embedding {left} to {right}...")
+
+        with torch.no_grad():
+            results = model(batch_tokens[left:right], repr_layers=[33], return_contacts=True)
+        # token_representations.append(results["representations"][33])
+        if i == 0:
+            token_representations = results["representations"][33]
+        else:
+            token_representations = torch.cat((token_representations, results["representations"][33]), dim=0)
+
+        del results
+
+
+    for i, tokens_len in enumerate(batch_lens):
+        negOutput.append(token_representations[i, 1 : tokens_len - 1].mean(0).detach().numpy())
+
+    del batch_labels, batch_strs, batch_tokens, batch_lens, token_representations
+
+    posOutput = np.array(posOutput)
+    negOutput = np.array(negOutput)
 
     return posOutput, negOutput

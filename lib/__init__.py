@@ -4,6 +4,7 @@ from . import evaluate
 from . import preprocess
 from . import embedding
 from . import analysis
+from . import utils
 
 
 

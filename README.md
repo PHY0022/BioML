@@ -26,3 +26,8 @@ Use `exp/<model_name>_results.ipynb` to see your execution results
 All codes were designed and run under Windows 11 environment
 
 Check `setup.txt` for environment construction
+
+> Note: Codes under `bin/` were not implemented by myself and were downloaded from:
+> [iFeature](https://github.com/Superzchen/iFeature/)
+> ,
+> [BLAST+](https://blast.ncbi.nlm.nih.gov/doc/blast-help/downloadblastdata.html)
