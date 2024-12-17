@@ -105,13 +105,14 @@ def main():
 
     #============= Configurations ==============#
     ## Sampling method
-    # sampling = "upsampling_random"
-    sampling = "downsampling_onehot_kmeans"
+    sampling = "upsampling_random"
+    # sampling = "downsampling_onehot_kmeans"
 
     ## BERT encoding
     # bert_model = 'TAPE'
     # bert_model = 'ESM2'
-    bert_model = 'ANKH_base'
+    # bert_model = 'ANKH_base'
+    bert_model = 'PROTRANS'
 
     ## Model hyperparameters
     param_distribution = {
@@ -119,6 +120,8 @@ def main():
         "kernel_size": [3],#, 4, 5, 6, 7, 8],
         "lstm_num": [20],#, 40, 60]
     }
+    # Result prefix
+    prefix = '1216_US_PROTRANS-'
     #===========================================#
 
 
@@ -173,7 +176,7 @@ def main():
                     "kernel_size": kernel_size,
                     "lstm_dim": lstm_num
                 }
-                trainer(X_bert, X_data, y_data, '1212ANKH-', **params)
+                trainer(X_bert, X_data, y_data, prefix=prefix, **params)
                 models.reset_keras()
 
 

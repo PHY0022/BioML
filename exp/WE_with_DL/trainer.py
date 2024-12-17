@@ -132,9 +132,9 @@ def trainer(X_kmer,
     model = models.WE_DL(word2vec)
     model.fit(X_train, y_data, epochs=epochs, batch_size=batch_size)
 
-    word2vec_path = os.path.join(result_dir, "word2vec.model")
+    word2vec_path = os.path.join(result_dir, "word2vec.h5")
     word2vec.save(word2vec_path)
-    model_path = os.path.join(result_dir, "WE_DL.model")
+    model_path = os.path.join(result_dir, "WE_DL.h5")
     model.save(model_path)
     print("Models saved at", result_dir)
 
@@ -154,8 +154,10 @@ def main():
 
     ## Model hyperparameters
     param_distribution = {
-        "kmer_size": [1]#, 2],
+        "kmer_size": [2]#, 1],
     }
+    # Result prefix
+    prefix='1214_DS-'
     #===========================================#
 
     # Load data
@@ -198,7 +200,7 @@ def main():
 
 
         # Model training
-        trainer(X_kmer, y_data, kmer_size=k, word2vec_epochs=30, epochs=200, prefix='1212DS-', **params)
+        trainer(X_kmer, y_data, kmer_size=k, word2vec_epochs=30, epochs=200, prefix=prefix, **params)
         del X_kmer, y_data
         models.reset_keras()
 

@@ -1,5 +1,8 @@
 import torch
 from tape import ProteinBertModel, TAPETokenizer
+# pip install tape_proteins
+
+
 model = ProteinBertModel.from_pretrained('bert-base')
 tokenizer = TAPETokenizer(vocab='iupac')  # iupac is the vocab for TAPE models, use unirep for the UniRep model
 

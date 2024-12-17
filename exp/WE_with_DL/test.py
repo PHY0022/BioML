@@ -16,7 +16,7 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 grandparent_dir = os.path.abspath( os.path.join(current_dir, "../../") )
 sys.path.append(grandparent_dir)
 
-from lib import encoder, models
+from lib import encoder, models, utils
 from tensorflow.keras.models import load_model
 import numpy as np
 
@@ -27,10 +27,11 @@ models.check_gpu()
 
 
 
-# Hyperparameters
-suffix = ""
-word2vec_model_path = os.path.join(current_dir, "pretrained/word2vec" + suffix + ".model")
-DL_model_path = os.path.join(current_dir, "pretrained/WE_DL" + suffix + ".model")
+# Load model
+result_dir = os.path.join(current_dir, "1212-result-20241212035903")
+model_paths = utils.get_model_paths(result_dir)
+word2vec_model_path = model_paths["word2vec"]
+DL_model_path = model_paths["WE_DL"]
 
 
 
@@ -42,7 +43,7 @@ Seqs = encoder.Encoder(data_path, "")
 
 # Convert sequences to 2mers
 print("Converting sequences to kmers...")
-k = 2
+k = 1
 X_data, _ = Seqs.ToKmer(k)
 
 
@@ -74,7 +75,7 @@ we_dl.model = load_model(DL_model_path)
 
 
 # Predict
-y_pred = we_dl.predict(X_test)
+y_pred = we_dl.predict(X_test)[:,0]
 print(y_pred.shape)
 # np.save("./result.npy", y_pred)
 

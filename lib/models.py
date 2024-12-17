@@ -96,7 +96,7 @@ class Word2Vec:
 
     def predict(self, data, verbose=0):
         hidden_layer = self.model.get_layer(index=0)
-        model = Sequential(hidden_layer)
+        model = Sequential([hidden_layer])
         return model.predict(data, verbose=verbose)
 
     def save(self, path):
@@ -119,7 +119,7 @@ class WE_DL:
     Input shape: (batch_size, seq_length, 400)
     (For 31mer, seq_length = 31 - 2 + 1 = 30 with kmer size = 2)
 
-    Output shape: (batch_size, 1)
+    Output shape: (batch_size, 2)
     '''
     def __init__(self, word2vec, optim='adam'):
         self.word2vec = word2vec

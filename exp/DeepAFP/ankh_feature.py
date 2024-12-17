@@ -25,5 +25,6 @@ print(posANKH.shape, negANKH.shape)
 
 
 prefix = "train_"
-np.save(current_dir+"/data/"+prefix+"posANKH"+model_size+".npy", posANKH)
-np.save(current_dir+"/data/"+prefix+"negANKH"+model_size+".npy", negANKH)
+os.makedirs(current_dir+"/data", exist_ok=True)
+np.save(current_dir+"/data/"+prefix+"posANKH_"+model_size+".npy", posANKH)
+np.save(current_dir+"/data/"+prefix+"negANKH_"+model_size+".npy", negANKH)

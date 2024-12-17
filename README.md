@@ -1,13 +1,13 @@
 # BioML
 
-2024 Machine Learning in Computational Biology
+Machine Learning in Computational Biology 2024
 
 
 
 
-***Topic: Computational Identification of Protein Phosphorylation Sites***
+***Topic: Computational Identification of Protein Sumoylation Sites***
 
-## Different model implementations:
+## Model implementations:
 
 
 | Model name | Folder | Reference |

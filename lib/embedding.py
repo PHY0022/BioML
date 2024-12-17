@@ -5,6 +5,8 @@ import torch
 from tape import ProteinBertModel, TAPETokenizer
 import ankh
 import esm
+from transformers import T5Tokenizer, T5EncoderModel
+import re
 
 def skipgrams_kmer(Kmers, window_size):
     pairs = []
@@ -304,5 +306,78 @@ def esm2_embedding(posSeqs, negSeqs, group_num=500):
 
     posOutput = np.array(posOutput)
     negOutput = np.array(negOutput)
+
+    return posOutput, negOutput
+
+def protrans_embedding(posSeqs, negSeqs, group_num=500):
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(device)
+
+    # Load ProTrans model
+    tokenizer = T5Tokenizer.from_pretrained('Rostlab/prot_t5_xl_half_uniref50-enc', do_lower_case=False)
+    model = T5EncoderModel.from_pretrained("Rostlab/prot_t5_xl_half_uniref50-enc").to(device)
+
+    # only GPUs support half-precision currently; if you want to run on CPU use full-precision (not recommended, much slower)
+    if device == torch.device("cpu"):
+        model.to(torch.float32)
+
+    posOutput = []
+    negOutput = []
+
+    print(f"Total {len(posSeqs)} positive sequences")
+    for i in range(0, len(posSeqs), group_num):
+        left = i
+        right = i + group_num
+        if right > len(posSeqs):
+            right = len(posSeqs)
+
+        print(f"Embedding {left} to {right}...")
+
+        posInputs = [" ".join(list(re.sub(r"[UZOB]", "X", seq))) for seq in posSeqs[left:right]]
+
+        # replace all rare/ambiguous amino acids by X and introduce white-space between all amino acids
+        ids = tokenizer(posInputs, add_special_tokens=True, padding="longest")
+
+        input_ids = torch.tensor(ids['input_ids']).to(device)
+        attention_mask = torch.tensor(ids['attention_mask']).to(device)
+
+        # generate embeddings
+        with torch.no_grad():
+            embedding_repr = model(input_ids=input_ids, attention_mask=attention_mask)
+        
+        if i == 0:
+            posOutput = embedding_repr.last_hidden_state[:,:7].mean(dim=1).detach().numpy()
+        else:
+            posOutput = np.concatenate((posOutput, embedding_repr.last_hidden_state[:,:7].mean(dim=1).detach().numpy()), axis=0)
+
+    del posSeqs
+
+    print(f"Total {len(negSeqs)} negative sequences")
+    for i in range(0, len(negSeqs), group_num):
+        left = i
+        right = i + group_num
+        if right > len(negSeqs):
+            right = len(negSeqs)
+
+        print(f"Embedding {left} to {right}...")
+
+        negInputs = [" ".join(list(re.sub(r"[UZOB]", "X", seq))) for seq in negSeqs[left:right]]
+
+        # replace all rare/ambiguous amino acids by X and introduce white-space between all amino acids
+        ids = tokenizer(negInputs, add_special_tokens=True, padding="longest")
+
+        input_ids = torch.tensor(ids['input_ids']).to(device)
+        attention_mask = torch.tensor(ids['attention_mask']).to(device)
+
+        # generate embeddings
+        with torch.no_grad():
+            embedding_repr = model(input_ids=input_ids, attention_mask=attention_mask)
+        
+        if i == 0:
+            negOutput = embedding_repr.last_hidden_state[:,:7].mean(dim=1).detach().numpy()
+        else:
+            negOutput = np.concatenate((negOutput, embedding_repr.last_hidden_state[:,:7].mean(dim=1).detach().numpy()), axis=0)
+
+    del negSeqs
 
     return posOutput, negOutput

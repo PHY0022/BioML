@@ -26,5 +26,6 @@ print(posESM2.shape, negESM2.shape)
 # exit()
 
 prefix = "train_"
+os.makedirs(current_dir+"/data", exist_ok=True)
 np.save(current_dir+"/data/"+prefix+"posESM2.npy", posESM2)
 np.save(current_dir+"/data/"+prefix+"negESM2.npy", negESM2)
