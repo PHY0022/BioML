@@ -182,7 +182,7 @@ def main():
 
         ## Upsampling (random)
         if sampling == "upsampling_random":    
-            posKmers, negKmers = encoder.Balance(posKmers, negKmers, shuffle=False)
+            posKmers, negKmers = encoder.Balance(posKmers, negKmers, upsample=True, shuffle=False)
         ## Downsampling (onehot kmeans)
         elif sampling == "downsampling_onehot_kmeans":
             kmeans_indices = np.load("dataset/31mer/provided_by_TA/kmeans/onehot_kmeans_indices.npy")

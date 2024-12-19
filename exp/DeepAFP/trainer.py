@@ -139,8 +139,8 @@ def main():
 
     # Balance data
     if sampling == "upsampling_random":
-        pos_data, neg_data = encoder.Balance(pos_data, neg_data, shuffle=False)
-        posBERT, negBERT = encoder.Balance(posBERT, negBERT, shuffle=False)
+        pos_data, neg_data = encoder.Balance(pos_data, neg_data, upsample=True, shuffle=False)
+        posBERT, negBERT = encoder.Balance(posBERT, negBERT, upsample=True, shuffle=False)
     elif sampling == "downsampling_onehot_kmeans":
         kmeans_indices = np.load("dataset/31mer/provided_by_TA/kmeans/onehot_kmeans_indices.npy")
         if len(neg_data) != len(kmeans_indices):
