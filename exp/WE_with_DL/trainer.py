@@ -121,7 +121,7 @@ def trainer(X_kmer,
 
 
     print("Training word2vec...")
-    word2vec = embedding.skip_gram_word2vec(X_kmer_train, input_dim, embedding_dim=input_dim // 2, epochs=word2vec_epochs, batch_size=word2vec_batch_size)
+    word2vec = embedding.skip_gram_word2vec(X_kmer, input_dim, embedding_dim=input_dim // 2, epochs=word2vec_epochs, batch_size=word2vec_batch_size)
 
     # Convert kmers to one-hot encoding
     print("Converting kmers to one-hot encoding...")

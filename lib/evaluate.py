@@ -6,6 +6,12 @@ import os
 
 
 
+def flip(y):
+    print("Flipped.")
+    return 1 - y
+
+
+
 def ACC(y_true, y_pred):
     y_true = np.array(y_true)
     y_pred = np.array(y_pred)
@@ -76,25 +82,26 @@ def Result(y_test, y_pred):
 
 
 def Evaluation(y_test, y_pred, path=''):
-    tprs, fprs, thresholds = metrics.roc_curve(y_test, 1 - y_pred)
+    tprs, fprs, thresholds = metrics.roc_curve(y_test, y_pred)
     auc = metrics.auc(fprs, tprs)
 
     if auc < 0.5:
+        y_pred = flip(y_pred)
         tprs, fprs, thresholds = metrics.roc_curve(y_test, y_pred)
         auc = metrics.auc(fprs, tprs)
 
     plt.plot(fprs, tprs, label=f"Model (AUC = {auc:.2f})")
-    plt.xlim([-0.05, 1.05])
-    plt.ylim([-0.05, 1.05])
+    plt.xlim([0, 1])
+    plt.ylim([0, 1])
     plt.xlabel("False Positive Rate")
     plt.ylabel("True Positive Rate")
     plt.title("ROC Curve")
     plt.legend()
-    plt.show()
-
     if path != '':
         plt.savefig(os.path.join(path, 'roc_curve.png'), dpi=1000)
         print(f"ROC curve saved at {os.path.join(path, 'roc_curve.png')}")
+    plt.show()
+
 
 
     # Find the best threshold (closest to (0, 1))
@@ -104,7 +111,7 @@ def Evaluation(y_test, y_pred, path=''):
     print(f"Best threshold: {best_threshold}")
 
     # Classification report
-    y_pred = [1 if pred > best_threshold else 0 for pred in y_pred]
+    y_pred = [0 if pred > best_threshold else 1 for pred in y_pred]
     accuracy = sum([1 if pred == true else 0 for pred, true in zip(y_pred, y_test)]) / len(y_test)
     print(f"Accuracy: {accuracy}")
     print("Classification report:")
@@ -121,7 +128,8 @@ def ROC_curve_of_models(y_test, model_perform_dict, path=''):
         tprs, fprs, thres = metrics.roc_curve(y_test, y_proba)
         auc = metrics.auc(fprs, tprs)
         if auc < 0.5:
-            tprs, fprs, thresholds = metrics.roc_curve(y_test, 1 - y_proba)
+            y_proba = flip(y_proba)
+            tprs, fprs, thresholds = metrics.roc_curve(y_test, y_proba)
             auc = metrics.auc(fprs, tprs)
 
         plt.plot(fprs, tprs, label=f"{model_name} (AUC = {auc:.2f})")
@@ -148,7 +156,8 @@ def ROC_curve_of_cross_validation(answers, model_perform_dict, path=''):
         tprs, fprs, thres = metrics.roc_curve(answers[i], y_proba)
         auc = metrics.auc(fprs, tprs)
         if auc < 0.5:
-            tprs, fprs, thresholds = metrics.roc_curve(answers[i], 1 - y_proba)
+            y_proba = flip(y_proba)
+            tprs, fprs, thresholds = metrics.roc_curve(answers[i], y_proba)
             auc = metrics.auc(fprs, tprs)
 
         plt.plot(fprs, tprs, label=f"{model_name} (AUC = {auc:.2f})")

@@ -128,17 +128,17 @@ class WE_DL:
             Conv1D(128, 3, kernel_initializer=initializer, activation='relu'),
             MaxPooling1D(2),
             Dropout(0.5),
-            
+
             Conv1D(128, 3, kernel_initializer=initializer, activation='relu'),
             MaxPooling1D(2),
             Dropout(0.5),
-            
+
             Conv1D(128, 3, kernel_initializer=initializer, activation='relu'),
             MaxPooling1D(2),
             Dropout(0.5),
-            
+
             Flatten(),
-            
+
             Dense(128, activation='relu'),
             Dense(64, activation='relu'),
             # Dense(1, activation='sigmoid')
